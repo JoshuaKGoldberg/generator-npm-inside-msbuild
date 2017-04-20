@@ -1,0 +1,9 @@
+{
+  "generator-node": {
+    "promptValues": {
+      "authorName": "Josh Goldberg",
+      "authorEmail": "joshuakgoldberg@outlook.com",
+      "authorUrl": "http://joshuakgoldberg.com"
+    }
+  }
+}

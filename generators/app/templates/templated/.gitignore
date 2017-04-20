@@ -1,0 +1,14 @@
+# Build tools
+/node_modules
+nuget*.exe
+
+# Tests
+test/**/bin/**
+test/**/obj/**
+
+# Output
+/dist
+*.nupkg
+/.vs/config/applicationhost.config
+/.vs
+*.user

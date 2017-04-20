@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Ensures that if this file changes it forces a TypeScript rebuild -->
+  <PropertyGroup>
+    <<%= targetName %>TimestampFile Condition="'$(<%= targetName %>TimestampFile)' == ''">$(OutputPath)\$(MSBuildProjectName).<%= targetName %>.timestamp.txt</<%= targetName %>TimestampFile>
+  </PropertyGroup>
+
+  <Target
+    AfterTargets="<%= targetAfterTargets %>"
+    Condition="'@(<%= targetInputs %>)' != '' and ('$(BuildingProject)' == 'true' or '$(<%= targetName %>RunWhenNotBuilding)' == 'true')"
+    Inputs="@(<%= targetAfterTargets %>)"
+    Name="<%= targetName %>"
+    Outputs="$(<%= targetName %>TimestampFile)">
+
+    <!-- Stock properties -->
+    <PropertyGroup>
+      <<%= targetName %>BreakBuildOnError Condition="'$(<%= targetName %>BreakBuildOnError)' == ''">false</<%= targetName %>BreakBuildOnError>
+      <<%= targetName %>NodeExe Condition="'$(<%= targetName %>NodeExe)' == ''">$([System.IO.Path]::GetFullPath("$(MSBuildThisFileDirectory)..\tools\node-7.9.0.exe"))</<%= targetName %>NodeExe>
+      <<%= targetName %>Timeout Condition="'$(<%= targetName %>Timeout)' == ''">10000000</<%= targetName %>Timeout>
+      <<%= targetName %>Version Condition="'$(<%= targetName %>Version)' == ''">*.*.*</<%= targetName %>Version>
+    </PropertyGroup>
+
+    <!-- Custom properties -->
+    <PropertyGroup>
+      <%-
+        targetOptions
+          .filter(function (targetOption) {
+            return targetOption.optionType === 'property' && targetOption.defaultValue !== '';
+          })
+          .map(function (targetOption) {
+            return [
+              '<' + targetOption.name + ' Condition="\'$(' + targetOption.name + ')\' == \'\'">',
+              targetOption.defaultValue,
+              '</' + targetOption.name + '>'
+            ].join('');
+          })
+          .join('          ')
+      %>
+    </PropertyGroup>
+
+    <!-- Custom items -->
+    <ItemGroup>
+      <%-
+        targetOptions
+          .filter(function (targetOption) {
+            return targetOption.optionType === 'item' && targetOption.defaultValue !== '';
+          })
+          .map(function (targetOption) {
+            return [
+              '<' + targetOption.name + ' Condition="\'@(' + targetOption.name + ')\' == \'\'">',
+              targetOption.defaultValue,
+              '</' + targetOption.name + '>'
+            ].join('');
+          })
+          .join('          ')
+      %>
+    </ItemGroup>
+
+    <!-- Grab the first matching <%= containedPackageName %> CLI in a NuGet packages install -->
+    <ItemGroup Condition="'$(<%= targetName %>Cli)' == ''">
+      <<%= targetName %>PotentialCli Include="$(SolutionDir)packages\<%= containedPackageName %>.$(<%= targetName %>Version)\tools\node_modules\<%= containedPackageName %>\<%= cliLauncher %>" />
+      <<%= targetName %>PotentialCli Include="$(MSBuildThisFileDirectory)..\..\<%= containedPackageName %>.$(<%= targetName %>Version)\tools\node_modules\<%= containedPackageName %>\<%= cliLauncher %>" />
+      <<%= targetName %>PotentialCli Include="$(ProjectDir)node_modules\<%= containedPackageName %>\<%= cliLauncher %>" />
+    </ItemGroup>
+    <PropertyGroup Condition="'$(<%= targetName %>Cli)' == ''">
+      <<%= targetName %>CliProperty>@(<%= targetName %>PotentialCli);</<%= targetName %>CliProperty>
+      <<%= targetName %>Cli>$(<%= targetName %>CliProperty.Substring(0, $(<%= targetName %>CliProperty.IndexOf(';'))))</<%= targetName %>Cli>
+    </PropertyGroup>
+
+    <!-- Build the <%= targetName %> arguments -->
+    <PropertyGroup>
+      <<%= targetName %>Args></<%= targetName %>Args>
+      <%-
+        targetOptions
+          .filter(function (targetOption) {
+            return targetOption.optionType === 'property';
+          })
+          .map(function (targetOption) {
+            return [
+              '<' + targetName + 'Args Condition="\'$(' + targetOption.name + ')\' != \'\'">',
+              '$(' + targetName + 'Args)\' --' + targetOption.flag + ' $(' + targetOption.name + ')',
+              '</' + targetName + 'Args>'
+            ].join('');
+          })
+          .join('          ')
+      %>
+      <%-
+        targetOptions
+          .filter(function (targetOption) {
+            return targetOption.optionType === 'item';
+          })
+          .map(function (targetOption) {
+            return [
+              '<' + targetName + 'Args Condition="\'@(' + targetOption.name + ')\' != \'\'">',
+              '$(' + targetName + 'Args)\' --' + targetOption.flag + ' @(' + targetOption.name + ', \' --' + targetOption.flag + ' \')',
+              '</' + targetName + 'Args>'
+            ].join('');
+          })
+          .join('          ')
+      %>
+    <<%= targetName %>Args Condition="'$(<%= targetName %>ExtraArgs)' != ''">$(<%= targetName %>Args) $(<%= targetName %>ExtraArgs)</<%= targetName %>Args>
+                                <TSLintArgs Condition="'$(TSLintFileListDisabled)' != 'true' And '@(TypeScriptCompile)' != ''">$(TSLintArgs) @(TypeScriptCompile, ' ')</TSLintArgs>
+    </PropertyGroup>
+
+                                <Error Condition="'$(TSLintFileListDisabled)' == 'true' And '$(TSLintProject)' == ''" Text="You disabled file listing on the command line using TSLintFileDisabled, but did not specify a project file with TSLintProject." />
+
+    <Touch
+      AlwaysCreate="true"
+      Files="$(<%= targetName %>TimestampFile)" />
+
+    <!-- Run <%= containedPackageName %> using the Node executable -->
+    <Exec
+      Command="&quot;$(<%= targetName %>NodeExe)&quot; &quot;$(<%= targetName %>Cli)&quot; $(<%= targetName %>Args)"
+      Condition="'$(<%= targetName %>Disabled)' != 'true'"
+      ConsoleToMsBuild="true"
+      EchoOff="true"
+      IgnoreExitCode="true"
+      Timeout="$(<%= targetName %>Timeout)">
+      <Output TaskParameter="ConsoleOutput" ItemName="<%= targetName %>Output" />
+      <Output TaskParameter="ExitCode" PropertyName="<%= targetName %>ErrorCode" />
+    </Exec>
+
+    <!-- Return an error if <%= containedPackageName %> returned an exit code and we should break on errors -->
+    <Error Condition="'$(<%= targetName %>ErrorCode)' != '0' and '$(<%= targetName %>BreakBuildOnError)' == 'true'" />
+  </Target>
+</Project>

@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id><%= nugetName %></id>
+    <title><%= nugetName %></title>
+    <version>0.0.0</version>
+    <authors><%= author %></authors>
+    <owners><%= author %></owners>
+    <licenseUrl>https://github.com/<%= githubUser %>/<%= nugetName %>/blob/master/LICENSE.md</licenseUrl>
+    <projectUrl>https://github.com/<%= githubUser %>/<%= nugetName %></projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>
+      <%- description %>
+    </description>
+    <tags><%= containedPackageName %>, msbuild</tags>
+  </metadata>
+  <files>
+    <file src="LICENSE.md" target="tools" />
+    <file src="README.md" target="tools" />
+    <file src="src\tools\node-*.exe" target="tools" />
+    <file src="src\build\<%= nugetName %>.targets" target="build" />
+  </files>
+</package>
